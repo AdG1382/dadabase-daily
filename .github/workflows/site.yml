@@ -1,0 +1,38 @@
+name: Rebuild website
+
+# Runs when the jokes or the code change, so edits show up on the site without waiting for the next post.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/jokes.csv"
+      - "data/seasons.json"
+      - "dadabase/**"
+      - "assets/**"
+  workflow_dispatch:
+
+concurrency:
+  group: dadabase-post
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install -r requirements.txt
+      - name: Build and deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          SHOP_URL: ${{ vars.SHOP_URL }}
+        run: python -m dadabase build-site

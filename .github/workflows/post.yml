@@ -1,0 +1,81 @@
+name: Post daily joke
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # 08:47 IST: Instagram carousel
+    - cron: "23 13 * * *"  # 18:53 IST: YouTube Short + Instagram Reel
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "What to post"
+        type: choice
+        options: [carousel, short]
+        default: carousel
+      dry_run:
+        description: "Render and build only, don't publish"
+        type: boolean
+        default: false
+
+concurrency:
+  group: dadabase-post
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Work out which slot this is
+        id: slot
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "slot=${{ inputs.slot }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "17 3 * * *" ]; then
+            echo "slot=carousel" >> "$GITHUB_OUTPUT"
+          else
+            echo "slot=short" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pick, render and publish
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          SHOP_URL: ${{ vars.SHOP_URL }}
+          YT_PRIVACY: ${{ vars.YT_PRIVACY || 'public' }}
+        run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Save posting history
+        if: always()
+        run: |
+          git config user.name "dadabase-bot"
+          git config user.email "dadabase-bot@users.noreply.github.com"
+          git add data/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Posted ${{ steps.slot.outputs.slot }} $(date -u +%Y-%m-%d)"
+            git pull --rebase --quiet && git push
+          fi
