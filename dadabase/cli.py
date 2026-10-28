@@ -1,8 +1,7 @@
 """Command line entry point: `python -m dadabase <command>`."""
 import argparse
+import json
 import os
-import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -16,21 +15,10 @@ def log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def deploy_site() -> bool:
-    """Upload site/ to Cloudflare Pages. Returns False when Cloudflare isn't set up yet."""
-    if not (config.CF_API_TOKEN and config.CF_ACCOUNT_ID):
-        log("Cloudflare not configured: skipping deploy")
-        return False
-    env = {**os.environ}
-    project = os.environ.get("CF_PAGES_PROJECT", "dadabase-daily")
-    subprocess.run(["npx", "--yes", "wrangler@4", "pages", "project", "create", project, "--production-branch", "main"],
-                   env=env, capture_output=True)  # fails harmlessly if it already exists
-    subprocess.run(["npx", "--yes", "wrangler@4", "pages", "deploy", str(config.SITE_OUT), "--project-name", project,
-                    "--branch", "main", "--commit-dirty=true"], env=env, check=True)
-    return True
+PENDING = config.WORK / "pending.json"
 
 
-def wait_live(url: str, timeout_s: int = 300) -> None:
+def wait_live(url: str, timeout_s: int = 600) -> None:
     start = time.time()
     while time.time() - start < timeout_s:
         try:
@@ -43,21 +31,33 @@ def wait_live(url: str, timeout_s: int = 300) -> None:
 
 
 def cmd_post(args) -> int:
-    day = queue.today_ist()
-    state = queue.load_state()
-    joke = queue.pick_next(day, state)
-    log(f"[{args.slot}] {joke.id} ({joke.category}, {joke.flavour}, season={joke.season}): {joke.setup}")
+    """Stage "render": pick a joke, draw its media into site/media, build the site, note it in build/pending.json.
+    GitHub Actions then publishes site/ to GitHub Pages.
+    Stage "publish": wait for the media URLs, post to Instagram/YouTube, record the result in data/state.json."""
+    if args.stage == "render":
+        day = queue.today_ist()
+        joke = queue.pick_next(day)
+        log(f"[{args.slot}] {joke.id} ({joke.category}, {joke.flavour}, season={joke.season}): {joke.setup}")
+        site.build()
+        media_dir = config.SITE_OUT / "media" / joke.id.lower()
+        if args.slot == "carousel":
+            files = [p.name for p in render.carousel_slides(joke, media_dir)]
+        else:
+            from . import video
+            files = [video.make_short(joke, media_dir).name]
+        PENDING.write_text(json.dumps({"id": joke.id, "slot": args.slot, "day": day.isoformat(), "files": files}), encoding="utf-8")
+        log(f"Rendered {files}; site ready to publish")
+        return 0
 
-    site.build()
-    media_dir = config.SITE_OUT / "media" / joke.id.lower()
+    # publish
+    pending = json.loads(PENDING.read_text(encoding="utf-8"))
+    joke = {j.id: j for j in queue.load_jokes()}[pending["id"]]
+    urls = [f"{config.SITE_URL}/media/{joke.id.lower()}/{f}" for f in pending["files"]]
     results: dict = {}
     errors: list[str] = []
 
     if args.slot == "carousel":
-        slides = render.carousel_slides(joke, media_dir)
-        live = False if args.dry_run else deploy_site()
-        if config.IG_ACCESS_TOKEN and live and not args.dry_run:
-            urls = [f"{config.SITE_URL}/media/{joke.id.lower()}/{p.name}" for p in slides]
+        if config.IG_ACCESS_TOKEN:
             try:
                 from . import instagram
                 for u in urls:
@@ -67,13 +67,10 @@ def cmd_post(args) -> int:
             except Exception as e:  # noqa: BLE001
                 errors.append(f"Instagram: {e}")
         else:
-            log("Instagram skipped (token or hosting not set up, or dry run)")
-
-    else:  # short: YouTube Short + Instagram Reel from the same video
-        from . import video
-        mp4 = video.make_short(joke, media_dir)
-        live = False if args.dry_run else deploy_site()
-        if config.YT_REFRESH_TOKEN and not args.dry_run:
+            log("Instagram skipped (no IG_ACCESS_TOKEN secret yet)")
+    else:
+        mp4 = config.SITE_OUT / "media" / joke.id.lower() / pending["files"][0]
+        if config.YT_REFRESH_TOKEN:
             try:
                 from . import youtube
                 results["yt_id"] = youtube.upload_short(mp4, captions.youtube_title(joke), captions.youtube_description(joke),
@@ -82,24 +79,24 @@ def cmd_post(args) -> int:
             except Exception as e:  # noqa: BLE001
                 errors.append(f"YouTube: {e}")
         else:
-            log("YouTube skipped (not set up yet, or dry run)")
-        if config.IG_ACCESS_TOKEN and live and not args.dry_run:
+            log("YouTube skipped (no YT_REFRESH_TOKEN secret yet)")
+        if config.IG_ACCESS_TOKEN:
             try:
                 from . import instagram
-                url = f"{config.SITE_URL}/media/{joke.id.lower()}/{mp4.name}"
-                wait_live(url)
-                results["ig_reel_id"] = instagram.post_reel(url, captions.reel_caption(joke))
+                wait_live(urls[0])
+                results["ig_reel_id"] = instagram.post_reel(urls[0], captions.reel_caption(joke))
                 log(f"Instagram Reel published: {results['ig_reel_id']}")
             except Exception as e:  # noqa: BLE001
                 errors.append(f"Instagram Reel: {e}")
         else:
-            log("Instagram Reel skipped (token or hosting not set up, or dry run)")
+            log("Instagram Reel skipped (no IG_ACCESS_TOKEN secret yet)")
 
-    if not args.dry_run:
-        if errors:
-            results["errors"] = errors
-        queue.record(state, joke, args.slot, day, results)
-        queue.save_state(state)
+    if errors:
+        results["errors"] = errors
+    state = queue.load_state()
+    import datetime as dt
+    queue.record(state, joke, args.slot, dt.date.fromisoformat(pending["day"]), results)
+    queue.save_state(state)
     for e in errors:
         log(f"ERROR {e}")
     return 1 if errors else 0
@@ -107,8 +104,6 @@ def cmd_post(args) -> int:
 
 def cmd_build(args) -> int:
     site.build()
-    if not args.no_deploy:
-        deploy_site()
     return 0
 
 
@@ -154,7 +149,6 @@ def cmd_whoami(args) -> int:
     else:
         log("Instagram: no token")
     log(f"YouTube: {'configured' if config.YT_REFRESH_TOKEN else 'not configured'}")
-    log(f"Cloudflare: {'configured' if config.CF_API_TOKEN else 'not configured'}")
     return 0
 
 
@@ -168,11 +162,9 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("post", help="pick the next joke, render, publish")
     s.add_argument("--slot", choices=["carousel", "short"], required=True)
-    s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--stage", choices=["render", "publish"], required=True)
     s.set_defaults(fn=cmd_post)
-    s = sub.add_parser("build-site")
-    s.add_argument("--no-deploy", action="store_true")
-    s.set_defaults(fn=cmd_build)
+    sub.add_parser("build-site").set_defaults(fn=cmd_build)
     s = sub.add_parser("preview")
     s.add_argument("--id")
     s.add_argument("--out", default="build/preview")

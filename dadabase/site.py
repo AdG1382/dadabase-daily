@@ -51,6 +51,16 @@ const j=all[Math.floor(Math.random()*all.length)];location.href='/j/'+j.id.toLow
 document.querySelectorAll('[data-random]').forEach(b=>b.addEventListener('click',randomJoke));
 """
 
+PRIVACY = f"""<section class="hero"><h1>Privacy</h1><p>Last updated 28 October 2026</p></section>
+<div class="card"><p>{config.BRAND} is a joke website. It has no accounts, no sign-up forms and no comments, and it doesn't
+collect personal information from visitors.</p>
+<p>The site is hosted on GitHub Pages, which may keep standard server logs (such as IP addresses) for security. See
+GitHub's privacy statement for details. No advertising or analytics cookies are used today; if that changes, this page will
+say so first.</p>
+<p>{config.BRAND} uses the YouTube and Instagram APIs only to publish its own videos and posts to its own channels. It does
+not access, store or share anyone else's data. Use of YouTube is subject to the YouTube Terms of Service and the Google Privacy
+Policy.</p><p>Questions: message {config.HANDLE} on Instagram.</p></div>"""
+
 CAT_BLURB = {
     "food": "Chai, samosas, biryani and puns that are fully baked.",
     "family": "Dads, moms, aunties and the family WhatsApp group.",
@@ -86,7 +96,7 @@ def _page(title: str, body: str, desc: str, path: str, image: str = "", noindex:
 <header class="top"><a class="brand" href="/"><img src="/assets/mascot.png" alt="">{_e(config.BRAND)}</a>
 <nav class="social"><a href="{config.INSTAGRAM_URL}">Instagram</a><a href="{config.YOUTUBE_URL}">YouTube</a>{f'<a href="{config.SHOP_URL}">Shop</a>' if config.SHOP_URL else ''}</nav></header>
 {body}
-<footer>{_e(config.BRAND)} · one dad joke a day, served with chai. Follow <a href="{config.INSTAGRAM_URL}">{_e(config.HANDLE)}</a> on Instagram and YouTube.</footer>
+<footer>{_e(config.BRAND)} · one dad joke a day, served with chai. Follow <a href="{config.INSTAGRAM_URL}">{_e(config.HANDLE)}</a> on Instagram and YouTube. <a href="/privacy/">Privacy</a></footer>
 </div><script>{JS}</script></body></html>"""
 
 
@@ -165,4 +175,22 @@ def build() -> None:
         + "".join(f"<url><loc>{u}</loc><lastmod>{today}</lastmod></url>" for u in urls) + "</urlset>\n", encoding="utf-8")
     (config.SITE_OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {config.SITE_URL}/sitemap.xml\n", encoding="utf-8")
     (config.SITE_OUT / "404.html").write_text(_page("Not found", '<section class="hero"><h1>This joke went missing.</h1><p><a href="/">Back home</a></p></section>', "Not found", "/404", noindex=True), encoding="utf-8")
+    priv = config.SITE_OUT / "privacy"
+    priv.mkdir()
+    (priv / "index.html").write_text(_page(f"Privacy | {config.BRAND}", PRIVACY, f"Privacy policy for {config.BRAND}", "/privacy/"), encoding="utf-8")
+    _apply_base_path()
     print(f"Site built: {len(jokes)} jokes, {len(order)} topics")
+
+
+def _apply_base_path() -> None:
+    """Rewrite root-relative links when the site lives under a sub-path (e.g. user.github.io/repo/)."""
+    base = config.BASE_PATH
+    if not base:
+        return
+    swaps = [('href="/', f'href="{base}/'), ('src="/', f'src="{base}/'), ("url(/assets", f"url({base}/assets"),
+             ("fetch('/jokes.json')", f"fetch('{base}/jokes.json')"), ("location.href='/j/'", f"location.href='{base}/j/'")]
+    for f in list(config.SITE_OUT.rglob("*.html")) + [config.SITE_OUT / "assets" / "style.css"]:
+        text = f.read_text(encoding="utf-8")
+        for a, b in swaps:
+            text = text.replace(a, b)
+        f.write_text(text, encoding="utf-8")

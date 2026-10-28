@@ -11,10 +11,10 @@ on:
         type: choice
         options: [carousel, short]
         default: carousel
-      dry_run:
-        description: "Render and build only, don't publish"
+      publish:
+        description: "Actually post to Instagram/YouTube (untick to only render and update the website)"
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: dadabase-post
@@ -22,11 +22,24 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   post:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      SHOP_URL: ${{ vars.SHOP_URL }}
+      YT_PRIVACY: ${{ vars.YT_PRIVACY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,10 +47,6 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
 
       - name: Install ffmpeg
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
@@ -56,18 +65,22 @@ jobs:
             echo "slot=short" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Pick, render and publish
-        env:
-          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SITE_URL: ${{ vars.SITE_URL }}
-          SHOP_URL: ${{ vars.SHOP_URL }}
-          YT_PRIVACY: ${{ vars.YT_PRIVACY || 'public' }}
-        run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" ${{ inputs.dry_run && '--dry-run' || '' }}
+      - name: Pick joke and render media + website
+        run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" --stage render
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Publish website to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Post to Instagram and YouTube
+        if: github.event_name == 'schedule' || inputs.publish
+        run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" --stage publish
 
       - name: Save posting history
         if: always()

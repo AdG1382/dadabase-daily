@@ -30,22 +30,24 @@ Add these under **Settings → Secrets and variables → Actions**.
 | `IG_ACCESS_TOKEN` | Meta app → Instagram API → API setup with Instagram login → Generate token |
 | `YT_CLIENT_ID`, `YT_CLIENT_SECRET` | Google Cloud → APIs & Services → Credentials → OAuth client (Desktop app) |
 | `YT_REFRESH_TOKEN` | Run `python scripts/get_youtube_token.py CLIENT_ID CLIENT_SECRET` on your computer |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → template "Edit Cloudflare Workers" (includes Pages) |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/Workers page |
 | `GH_PAT` | GitHub → Settings → Developer settings → Fine-grained token, this repo only, permission "Secrets: Read and write" |
 
 **Variables**
 
 | Name | Value |
 |---|---|
-| `SITE_URL` | `https://dadabase-daily.pages.dev` at first, then `https://dadabase.adityagagare.in` once the DNS record is live |
+| `SITE_URL` | Leave unset to use `https://adg1382.github.io/dadabase-daily`; set to `https://dadabase.adityagagare.in` once the custom domain works |
 | `YT_PRIVACY` | `public` (uploads stay private anyway until Google approves the API audit) |
 | `SHOP_URL` | Leave empty until a merch store exists |
 
-## Custom domain
+## Website hosting (GitHub Pages)
 
-In Cloudflare Pages → dadabase-daily → Custom domains, add `dadabase.adityagagare.in`. Then in
-Hostinger DNS add a `CNAME` record: name `dadabase`, target `dadabase-daily.pages.dev`.
+Settings → Pages → Source: **GitHub Actions**. Each post run builds the site and publishes it, so
+Instagram can fetch that day's images and video from the site.
+
+Custom domain: in Hostinger DNS add a `CNAME` record, name `dadabase`, target `adg1382.github.io`.
+Then Settings → Pages → Custom domain: `dadabase.adityagagare.in`, tick Enforce HTTPS, and set the
+`SITE_URL` variable to `https://dadabase.adityagagare.in`.
 
 ## Everyday commands
 
@@ -53,7 +55,7 @@ Hostinger DNS add a `CNAME` record: name `dadabase`, target `dadabase-daily.page
 pip install -r requirements.txt
 python -m dadabase queue --count 14          # what posts next
 python -m dadabase preview --id DJ0001 --video   # render one joke locally into build/preview
-python -m dadabase build-site --no-deploy    # build the website into site/
+python -m dadabase build-site                # build the website into site/
 python -m dadabase avatar                    # profile picture for Instagram/YouTube
 ```
 
