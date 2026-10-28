@@ -51,15 +51,57 @@ const j=all[Math.floor(Math.random()*all.length)];location.href='/j/'+j.id.toLow
 document.querySelectorAll('[data-random]').forEach(b=>b.addEventListener('click',randomJoke));
 """
 
-PRIVACY = f"""<section class="hero"><h1>Privacy</h1><p>Last updated 28 October 2026</p></section>
-<div class="card"><p>{config.BRAND} is a joke website. It has no accounts, no sign-up forms and no comments, and it doesn't
-collect personal information from visitors.</p>
-<p>The site is hosted on GitHub Pages, which may keep standard server logs (such as IP addresses) for security. See
-GitHub's privacy statement for details. No advertising or analytics cookies are used today; if that changes, this page will
-say so first.</p>
-<p>{config.BRAND} uses the YouTube and Instagram APIs only to publish its own videos and posts to its own channels. It does
-not access, store or share anyone else's data. Use of YouTube is subject to the YouTube Terms of Service and the Google Privacy
-Policy.</p><p>Questions: message {config.HANDLE} on Instagram.</p></div>"""
+PRIVACY = f"""<section class="hero"><h1>Privacy policy</h1><p>Last updated 28 October 2026</p></section>
+<div class="card">
+<h2 style="margin-top:0">Visitors to this website</h2>
+<p>{config.BRAND} is a joke website. It has no accounts, no sign-up forms and no comments, and it doesn't collect personal
+information from visitors. The site is hosted on GitHub Pages, which may keep standard server logs (such as IP addresses) for
+security; see the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy
+Statement</a>. No advertising or analytics cookies are used today; if that changes, this page will say so first.</p>
+
+<h2>Use of YouTube API Services</h2>
+<p>{config.BRAND} uses YouTube API Services. Its publishing tool uses the YouTube Data API only to upload
+{config.BRAND}'s own videos (and their titles, descriptions and tags) to the {config.BRAND} YouTube channel, which is owned and
+operated by the same person who runs this site. The channel owner authorised this once through Google OAuth.</p>
+<ul>
+<li>It does not access, collect, store or share data about any other YouTube user or viewer.</li>
+<li>It does not display, embed or redistribute any YouTube content.</li>
+<li>The only credential it keeps is the channel owner's OAuth refresh token, stored encrypted as a GitHub Actions secret and used
+only to upload videos.</li>
+</ul>
+<p>By watching {config.BRAND} videos on YouTube you are using YouTube, which is subject to the
+<a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and the
+<a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</p>
+
+<h2>Revoking access and deleting data</h2>
+<p>Access granted to this tool can be revoked at any time from the
+<a href="https://myaccount.google.com/connections">Google security settings page</a> (Third-party apps &amp; services).
+When access is revoked, the stored token stops working immediately, and the channel owner then deletes it from the
+repository's secrets. No other YouTube API data is stored, so nothing else needs deleting. Requests about data can be sent to gagarea01@gmail.com.</p>
+
+<h2>Instagram</h2>
+<p>{config.BRAND} uses the Instagram API only to publish its own posts to its own Instagram account. It does not read or store
+other users' data.</p>
+<p>Questions: email gagarea01@gmail.com or message {config.HANDLE} on Instagram. See also the <a href="/terms/">Terms of use</a>.</p>
+</div>"""
+
+TERMS = f"""<section class="hero"><h1>Terms of use</h1><p>Last updated 28 October 2026</p></section>
+<div class="card">
+<p>{config.BRAND} (this website, the {config.HANDLE} Instagram account and the {config.BRAND} YouTube channel) publishes original,
+family-friendly dad jokes for entertainment.</p>
+<h2>Using the content</h2>
+<p>You may read, share and link to the jokes for personal, non-commercial use. Please credit {config.BRAND} when you repost.
+The joke texts, graphics, videos and mascot are original works of {config.BRAND}; commercial reuse (merchandise, books, paid
+media) needs written permission.</p>
+<h2>YouTube</h2>
+<p>{config.BRAND} videos are published on YouTube using YouTube API Services. By watching them you agree to the
+<a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>. Google's handling of data is described in the
+<a href="https://policies.google.com/privacy">Google Privacy Policy</a>, and ours in our <a href="/privacy/">Privacy policy</a>.</p>
+<h2>No warranty</h2>
+<p>The content is provided as is, for fun. Jokes may cause groaning. {config.BRAND} is not responsible for eye-rolls.</p>
+<h2>Contact</h2>
+<p>gagarea01@gmail.com</p>
+</div>"""
 
 CAT_BLURB = {
     "food": "Chai, samosas, biryani and puns that are fully baked.",
@@ -96,7 +138,7 @@ def _page(title: str, body: str, desc: str, path: str, image: str = "", noindex:
 <header class="top"><a class="brand" href="/"><img src="/assets/mascot.png" alt="">{_e(config.BRAND)}</a>
 <nav class="social"><a href="{config.INSTAGRAM_URL}">Instagram</a><a href="{config.YOUTUBE_URL}">YouTube</a>{f'<a href="{config.SHOP_URL}">Shop</a>' if config.SHOP_URL else ''}</nav></header>
 {body}
-<footer>{_e(config.BRAND)} · one dad joke a day, served with chai. Follow <a href="{config.INSTAGRAM_URL}">{_e(config.HANDLE)}</a> on Instagram and YouTube. <a href="/privacy/">Privacy</a></footer>
+<footer>{_e(config.BRAND)} · one dad joke a day, served with chai. Follow <a href="{config.INSTAGRAM_URL}">{_e(config.HANDLE)}</a> on Instagram and YouTube. <a href="/privacy/">Privacy policy</a> · <a href="/terms/">Terms</a></footer>
 </div><script>{JS}</script></body></html>"""
 
 
@@ -178,6 +220,9 @@ def build() -> None:
     priv = config.SITE_OUT / "privacy"
     priv.mkdir()
     (priv / "index.html").write_text(_page(f"Privacy | {config.BRAND}", PRIVACY, f"Privacy policy for {config.BRAND}", "/privacy/"), encoding="utf-8")
+    terms = config.SITE_OUT / "terms"
+    terms.mkdir()
+    (terms / "index.html").write_text(_page(f"Terms | {config.BRAND}", TERMS, f"Terms of use for {config.BRAND}", "/terms/"), encoding="utf-8")
     _apply_base_path()
     print(f"Site built: {len(jokes)} jokes, {len(order)} topics")
 
