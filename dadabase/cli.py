@@ -30,12 +30,26 @@ def wait_live(url: str, timeout_s: int = 600) -> None:
     raise TimeoutError(f"{url} did not go live within {timeout_s}s")
 
 
+def _gh_output(key: str, value: str) -> None:
+    out = os.environ.get("GITHUB_OUTPUT")
+    if out:
+        with open(out, "a", encoding="utf-8") as f:
+            f.write(f"{key}={value}\n")
+
+
 def cmd_post(args) -> int:
     """Stage "render": pick a joke, draw its media into site/media, build the site, note it in build/pending.json.
     GitHub Actions then publishes site/ to GitHub Pages.
     Stage "publish": wait for the media URLs, post to Instagram/YouTube, record the result in data/state.json."""
     if args.stage == "render":
         day = queue.today_ist()
+        already = any(p.get("published") and p.get("slot") == args.slot and p.get("date") == day.isoformat()
+                      for p in queue.load_state().get("posted", []))
+        if already and args.skip_if_done:
+            log(f"[{args.slot}] already posted today ({day}); nothing to do")
+            _gh_output("skip", "true")
+            return 0
+        _gh_output("skip", "false")
         joke = queue.pick_next(day)
         log(f"[{args.slot}] {joke.id} ({joke.category}, {joke.flavour}, season={joke.season}): {joke.setup}")
         site.build()
@@ -163,6 +177,7 @@ def main(argv=None) -> int:
     s = sub.add_parser("post", help="pick the next joke, render, publish")
     s.add_argument("--slot", choices=["carousel", "short"], required=True)
     s.add_argument("--stage", choices=["render", "publish"], required=True)
+    s.add_argument("--skip-if-done", action="store_true", help="exit quietly if this slot already posted today")
     s.set_defaults(fn=cmd_post)
     sub.add_parser("build-site").set_defaults(fn=cmd_build)
     s = sub.add_parser("preview")

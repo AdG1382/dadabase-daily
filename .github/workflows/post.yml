@@ -3,7 +3,9 @@ name: Post daily joke
 on:
   schedule:
     - cron: "17 3 * * *"   # 08:47 IST: Instagram carousel
+    - cron: "47 4 * * *"   # 10:17 IST: carousel backup (only posts if 08:47 didn't run)
     - cron: "23 13 * * *"  # 18:53 IST: YouTube Short + Instagram Reel
+    - cron: "53 14 * * *"  # 20:23 IST: short backup (only posts if 18:53 didn't run)
   workflow_dispatch:
     inputs:
       slot:
@@ -59,27 +61,31 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "slot=${{ inputs.slot }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "17 3 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "17 3 * * *" ] || [ "${{ github.event.schedule }}" = "47 4 * * *" ]; then
             echo "slot=carousel" >> "$GITHUB_OUTPUT"
           else
             echo "slot=short" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pick joke and render media + website
-        run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" --stage render
+        id: render
+        run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" --stage render ${{ github.event_name == 'schedule' && '--skip-if-done' || '' }}
 
       - uses: actions/configure-pages@v5
+        if: steps.render.outputs.skip != 'true'
 
       - uses: actions/upload-pages-artifact@v3
+        if: steps.render.outputs.skip != 'true'
         with:
           path: site
 
       - name: Publish website to GitHub Pages
         id: deploy
+        if: steps.render.outputs.skip != 'true'
         uses: actions/deploy-pages@v4
 
       - name: Post to Instagram and YouTube
-        if: github.event_name == 'schedule' || inputs.publish
+        if: steps.render.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.publish)
         run: python -m dadabase post --slot "${{ steps.slot.outputs.slot }}" --stage publish
 
       - name: Save posting history
