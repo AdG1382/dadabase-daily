@@ -19,7 +19,7 @@ HANDLE = "@dadabase.daily"
 SITE_URL = (os.environ.get("SITE_URL") or "https://adg1382.github.io/dadabase-daily").rstrip("/")
 BASE_PATH = urlparse(SITE_URL).path.rstrip("/")   # "/dadabase-daily" on github.io, "" on a custom domain
 INSTAGRAM_URL = "https://www.instagram.com/dadabase.daily/"
-YOUTUBE_URL = "https://www.youtube.com/@dadabase.daily"
+YOUTUBE_URL = "https://www.youtube.com/@dadabasedaily"
 SHOP_URL = os.environ.get("SHOP_URL") or ""   # fill in once a merch store exists
 
 TIMEZONE = "Asia/Kolkata"
