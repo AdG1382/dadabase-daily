@@ -28,6 +28,16 @@
       "date": "2026-10-29",
       "published": true,
       "ig_id": "18209641708369614"
+    },
+    {
+      "id": "DJ0178",
+      "slot": "short",
+      "date": "2026-10-30",
+      "published": true,
+      "yt_id": "pTYJHgOM8Vw",
+      "errors": [
+        "Instagram Reel: Instagram API error 401: {'message': 'Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.', 'type': 'OAuthException', 'code': 190, 'error_subcode': 0, 'fbtrace_id': 'AcHcbX-ODdF7t-gfVrx5flp'}"
+      ]
     }
   ]
 }
