@@ -56,6 +56,16 @@
       "errors": [
         "Instagram: Instagram API error 401: {'message': 'Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.', 'type': 'OAuthException', 'code': 190, 'error_subcode': 0, 'fbtrace_id': 'AUn4PAk4UxLOMWPH-jVULz7'}"
       ]
+    },
+    {
+      "id": "DJ0008",
+      "slot": "short",
+      "date": "2026-10-31",
+      "published": true,
+      "yt_id": "jI_3-dZxIEk",
+      "errors": [
+        "Instagram Reel: Instagram API error 401: {'message': 'Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.', 'type': 'OAuthException', 'code': 190, 'error_subcode': 0, 'fbtrace_id': 'A_-8hXams_Qq4XhO3a5HQkc'}"
+      ]
     }
   ]
 }
