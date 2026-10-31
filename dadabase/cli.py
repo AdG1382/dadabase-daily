@@ -113,6 +113,9 @@ def cmd_post(args) -> int:
     queue.save_state(state)
     for e in errors:
         log(f"ERROR {e}")
+    from . import alerts
+    succeeded = {p for p, k in (("instagram", "ig_id"), ("instagram", "ig_reel_id"), ("youtube", "yt_id")) if results.get(k)}
+    alerts.report(errors, succeeded)
     return 1 if errors else 0
 
 
@@ -147,8 +150,12 @@ def cmd_queue(args) -> int:
 
 
 def cmd_refresh_ig_token(args) -> int:
-    from . import instagram
-    new, secs = instagram.refresh_token(config.IG_ACCESS_TOKEN)
+    from . import alerts, instagram
+    try:
+        new, secs = instagram.refresh_token(config.IG_ACCESS_TOKEN)
+    except Exception as e:  # noqa: BLE001
+        alerts.raise_alert("instagram_token", f"Instagram (weekly token refresh): {e}")
+        raise
     if os.environ.get("GITHUB_ACTIONS"):
         print(f"::add-mask::{new}")
     Path(args.out).write_text(new, encoding="utf-8")
