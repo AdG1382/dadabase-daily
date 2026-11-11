@@ -270,6 +270,16 @@
       "date": "2026-11-11",
       "published": true,
       "ig_id": "18042460175661702"
+    },
+    {
+      "id": "DJ0003",
+      "slot": "short",
+      "date": "2026-11-12",
+      "published": true,
+      "ig_reel_id": "18102916130635708",
+      "errors": [
+        "YouTube: Google token refresh failed (400): {\n  \"error\": \"invalid_grant\",\n  \"error_description\": \"Token has been expired or revoked.\"\n}"
+      ]
     }
   ]
 }
