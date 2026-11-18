@@ -389,6 +389,16 @@
       "date": "2026-11-18",
       "published": true,
       "ig_id": "18116226751869424"
+    },
+    {
+      "id": "DJ0078",
+      "slot": "short",
+      "date": "2026-11-19",
+      "published": true,
+      "ig_reel_id": "18108588383564999",
+      "errors": [
+        "YouTube: Google token refresh failed (400): {\n  \"error\": \"invalid_grant\",\n  \"error_description\": \"Bad Request\"\n}"
+      ]
     }
   ]
 }
