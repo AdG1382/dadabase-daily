@@ -533,6 +533,16 @@
       "errors": [
         "Instagram: Instagram API error 403: {'message': 'Application request limit reached', 'type': 'OAuthException', 'is_transient': False, 'code': 4, 'error_subcode': 2207051, 'error_user_title': 'action is blocked', 'error_user_msg': 'We restrict certain activity to protect our community. Tell us if you think we made a mistake.', 'fbtrace_id': 'AI7Ea7GcHZNUmcg12budUYf'}"
       ]
+    },
+    {
+      "id": "DJ0214",
+      "slot": "short",
+      "date": "2026-11-27",
+      "published": true,
+      "ig_reel_id": "17894811072686370",
+      "errors": [
+        "YouTube: Google token refresh failed (400): {\n  \"error\": \"invalid_grant\",\n  \"error_description\": \"Bad Request\"\n}"
+      ]
     }
   ]
 }
